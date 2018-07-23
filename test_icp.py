@@ -2,11 +2,14 @@ import sys
 sys.path.append('/usr/lib64/python2.7/site-packages/')
 sys.path.append('/home/yioannidis/Downloads/Maya_scripts/Dr. XiaosongYang/ICP-TEST')
 
+#sys.path.remove('/home/yioannidis/Desktop/testPipeline/testPipelineCervical')
+#sys.path.remove('/home/yioannidis/Desktop/testPipeline/testPipelineCervical/testICPCUBE')
+import maya.cmds as cmds
 
 import numpy as np
 import time
 import icp
-
+reload(icp)
 
 import math as math
 
@@ -26,12 +29,12 @@ def assignNewMaterial( name, color, type, object):
 
 
 # Constants
-N = 10                                    # number of random points in the dataset
+N = 4                                    # number of random points in the dataset
 num_tests = 100                             # number of test iterations
 dim = 3                                     # number of dimensions of the points
-noise_sigma = .01                           # standard deviation error to be added
-translation = .1                            # max translation of the test set
-rotation = .1                               # max rotation (radians) of the test set
+noise_sigma = .1                           # standard deviation error to be added
+translation = 1                            # max translation of the test set
+rotation = 1                               # max rotation (radians) of the test set
 
 
 def rotation_matrix(axis, theta):
@@ -127,7 +130,7 @@ def test_icp():
 
     # Shuffle to disrupt correspondence
     np.random.shuffle(B)
-    '''
+    
     for i in range(num_tests):
 
         B = np.copy(A)
@@ -146,41 +149,42 @@ def test_icp():
         # Shuffle to disrupt correspondence
         np.random.shuffle(B)
         
-    '''  
+      
         
-        for i in B:  
-            counter+=1          
-            s=cmds.polySphere()
-            cmds.move(i[0],i[1],i[2])
-            s2color=[1,0,0]
-            assignNewMaterial( 'ballShader' + str(counter), (s2color[0], s2color[1], s2color[2]), 'blinn', s[0] )
-            
-            
-
-        # Run ICP
-        start = time.time()
-        T, distances, iterations = icp.icp(B, A, tolerance=0.000001)
-        total_time += time.time() - start
-
-        # Make C a homogeneous representation of B
-        C = np.ones((N, 4))
-        C[:,0:3] = np.copy(B)
-
-        # Transform C
-        C = np.dot(T, C.T).T
+    for i in B:  
+        counter+=1          
+        s=cmds.polySphere()
+        cmds.move(i[0],i[1],i[2])
+        print 'move,'+str(s[0])+' to ',i[0],i[1],i[2]
+        s2color=[1,0,0]
+        assignNewMaterial( 'ballShader' + str(counter), (s2color[0], s2color[1], s2color[2]), 'blinn', s[0] )
         
-for i in range(11,21,1):
-    cmds.select('pSphere'+str(i))
-    cmds.refresh()
-    time.sleep(0.5)
-    print 'pSphere'+str(i)
-    cmds.move(C[i-11][0],C[i-11][1],C[i-11][2])    
-    cmds.refresh()
-    time.sleep(0.5)
+    print 'B',B  
+    # Run ICP
+    start = time.time()
+    T, distances, iterations = icp.icp(B, A, tolerance=0.000001)
+    total_time += time.time() - start
 
-        assert np.mean(distances) < 6*noise_sigma                   # mean error should be small
-        assert np.allclose(T[0:3,0:3].T, R, atol=6*noise_sigma)     # T and R should be inverses
-        assert np.allclose(-T[0:3,3], t, atol=6*noise_sigma)        # T and t should be inverses
+    # Make C a homogeneous representation of B
+    C = np.ones((N, 4))
+    C[:,0:3] = np.copy(B)
+
+    # Transform C
+    C = np.dot(T, C.T).T
+    
+           
+    for i in range((N+1),(2*N+1),1):
+        cmds.select('pSphere'+str(i))
+        cmds.refresh()
+        time.sleep(0.5)
+        print 'pSphere'+str(i)
+        cmds.move(C[i-(N+1)][0],C[i-(N+1)][1],C[i-(N+1)][2])    
+        cmds.refresh()
+        time.sleep(0.5)
+
+    assert np.mean(distances) < 6*noise_sigma                   # mean error should be small
+    assert np.allclose(T[0:3,0:3].T, R, atol=6*noise_sigma)     # T and R should be inverses
+    assert np.allclose(-T[0:3,3], t, atol=6*noise_sigma)        # T and t should be inverses
 
     print('icp time: {:.3}'.format(total_time/num_tests))
 
